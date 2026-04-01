@@ -1,21 +1,25 @@
+from transformers import BertTokenizer, BertForSequenceClassification
+import torch
 import os
-import gdown
-import zipfile
 
 MODEL_PATH = "models/finbert_model"
 
-if not os.path.exists(MODEL_PATH):
-    os.makedirs("models", exist_ok=True)
+model = BertForSequenceClassification.from_pretrained(MODEL_PATH)
+tokenizer = BertTokenizer.from_pretrained(MODEL_PATH)
 
-    url = "https://drive.google.com/uc?id=13WAsFFupP_Ju5JcqsPTZnMm9CaQt5exn"
-    output = "models/model.zip"
+device = torch.device("cpu")
+model.to(device)
+model.eval()
 
-    gdown.download(url, output, quiet=False)
+labels = ["negative", "neutral", "positive"]
 
-    if not zipfile.is_zipfile(output):
-        raise Exception("Download failed. Not a zip file.")
+def predict(text):
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
 
-    with zipfile.ZipFile(output, 'r') as zip_ref:
-        zip_ref.extractall("models")
+    with torch.no_grad():
+        outputs = model(**inputs)
+        probs = torch.nn.functional.softmax(outputs.logits, dim=1)
 
-    os.remove(output)
+    predicted_class = torch.argmax(probs, dim=1).item()
+
+    return labels[predicted_class]
