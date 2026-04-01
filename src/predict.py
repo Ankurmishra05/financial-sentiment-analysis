@@ -6,7 +6,6 @@ import torch
 
 MODEL_PATH = "models/finbert_model"
 
-# Download & extract if not exists
 if not os.path.exists(MODEL_PATH):
     os.makedirs("models", exist_ok=True)
 
@@ -20,7 +19,15 @@ if not os.path.exists(MODEL_PATH):
 
     os.remove(output)
 
-# 🔥 FIX: ensure correct path
+    # 🔥 FIX: handle nested folder automatically
+    if not os.path.exists(MODEL_PATH):
+        # check if nested folder exists
+        nested_path = "models/finbert_model/finbert_model"
+        if os.path.exists(nested_path):
+            import shutil
+            shutil.move(nested_path, MODEL_PATH)
+
+# Final check
 if not os.path.exists(MODEL_PATH):
     raise Exception("Model folder not found after extraction")
 
