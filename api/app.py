@@ -1,30 +1,38 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from src.predict import predict
+from news import get_news
 
 app = FastAPI()
 
-class NewsInput(BaseModel):
+# ----------- REQUEST MODEL -----------
+class NewsRequest(BaseModel):
     headline: str
 
-@app.get("/")
-def home():
-    return {"message": "Financial Sentiment API Running 🚀"}
-
+# ----------- SINGLE PREDICTION -----------
 @app.post("/predict")
-def get_sentiment(data: NewsInput):
-    sentiment = predict(data.headline)
-
-    # Trading logic (BONUS 🔥)
-    if sentiment == "positive":
-        action = "BUY"
-    elif sentiment == "negative":
-        action = "SELL"
-    else:
-        action = "HOLD"
+def predict_sentiment(request: NewsRequest):
+    sentiment, action = predict(request.headline)
 
     return {
-        "headline": data.headline,
+        "headline": request.headline,
         "sentiment": sentiment,
         "action": action
     }
+
+# ----------- LIVE NEWS -----------
+@app.get("/live-news")
+def live_news():
+    headlines = get_news()
+    results = []
+
+    for headline in headlines:
+        sentiment, action = predict(headline)
+
+        results.append({
+            "headline": headline,
+            "sentiment": sentiment,
+            "action": action
+        })
+
+    return results

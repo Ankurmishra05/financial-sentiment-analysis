@@ -1,52 +1,16 @@
-import os
-import gdown
-import zipfile
-import shutil
-from transformers import BertTokenizer, BertForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 
-BASE_PATH = "models"
+MODEL_NAME = "ProsusAI/finbert"
 
-if not os.path.exists(BASE_PATH):
-    os.makedirs(BASE_PATH, exist_ok=True)
-
-MODEL_PATH = os.path.join(BASE_PATH, "finbert_model")
-
-# Download if not exists
-if not os.path.exists(MODEL_PATH):
-    url = "https://drive.google.com/uc?id=13WAsFFupP_Ju5JcqsPTZnMm9CaQt5exn"
-    output = os.path.join(BASE_PATH, "model.zip")
-
-    gdown.download(url, output, quiet=False)
-
-    with zipfile.ZipFile(output, 'r') as zip_ref:
-        zip_ref.extractall(BASE_PATH)
-
-    os.remove(output)
-
-    # 🔥 AUTO FIX: find correct folder
-    for root, dirs, files in os.walk(BASE_PATH):
-        if "config.json" in files:
-            print("Found model at:", root)
-            if root != MODEL_PATH:
-                if os.path.exists(MODEL_PATH):
-                    shutil.rmtree(MODEL_PATH)
-                shutil.move(root, MODEL_PATH)
-            break
-
-# Final check
-if not os.path.exists(os.path.join(MODEL_PATH, "config.json")):
-    raise Exception("Model not properly loaded")
-
-# Load model
-model = BertForSequenceClassification.from_pretrained(MODEL_PATH)
-tokenizer = BertTokenizer.from_pretrained(MODEL_PATH)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
 
 device = torch.device("cpu")
 model.to(device)
 model.eval()
 
-labels = ["negative", "neutral", "positive"]
+labels = ["positive", "negative", "neutral"]
 
 def predict(text):
     inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
@@ -56,5 +20,13 @@ def predict(text):
         probs = torch.nn.functional.softmax(outputs.logits, dim=1)
 
     predicted_class = torch.argmax(probs, dim=1).item()
+    sentiment = labels[predicted_class]
 
-    return labels[predicted_class]
+    if sentiment == "positive":
+        action = "BUY"
+    elif sentiment == "negative":
+        action = "SELL"
+    else:
+        action = "HOLD"
+
+    return sentiment, action
